@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local File Sharing Link Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        #info-section {
+            background-color: #e8f4fd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #info-section h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        #info-section p {
+            line-height: 1.6;
+        }
+        #drop-area {
+            border: 3px dashed #3498db;
+            border-radius: 20px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+            background-color: #ecf0f1;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        #drop-area:hover {
+            background-color: #d6e4ff;
+        }
+        #drop-area.highlight {
+            border-color: #9b59b6;
+            background-color: #d6e4ff;
+        }
+        #drop-area p {
+            font-size: 18px;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+        #file-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+        .file-item {
+            width: 120px;
+            text-align: center;
+            background-color: white;
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            cursor: pointer; /* Add cursor: pointer */
+        }
+        .file-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15); /* Enhance shadow on hover */
+        }
+        .file-item img, .file-item .file-icon {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+            font-size: 24px;
+            font-weight: bold;
+            color: #34495e;
+            margin-bottom: 10px;
+        }
+        .file-item p {
+            margin: 0;
+            font-size: 14px;
+            color: #34495e;
+            word-break: break-word;
+        }
+        .remove-file {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #confirm-button, #download-all, #copy-link {
+            display: none;
+            margin: 30px auto 0;
+            padding: 12px 30px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        #confirm-button:hover, #download-all:hover, #copy-link:hover {
+            background-color: #27ae60;
+        }
+        #share-url {
+            display: none;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 16px;
+        }
+        #share-url a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        #warning {
+            /* color: #e74c3c; */
+            color: #f39c12;
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #copy-link {
+            background-color: #3498db;
+            margin-left: 10px;
+        }
+        #copy-link:hover {
+            background-color: #2980b9;
+        }
+     #upload-link {
+         display: none;
+         text-align: center;
+         margin-top: 20px;
+     }
+     #upload-link a {
+         color: #3498db;
+         text-decoration: none;
+         font-weight: bold;
+     }
+     #upload-link a:hover {
+         text-decoration: underline;
+     }
+     #download-instructions {
+         display: none;
+         text-align: center;
+         margin-top: 20px;
+         font-style: italic;
+         color: #2c3e50;
+     }
+    </style>
+</head>
+<body>
+    <div id="info-section">
+        <p>This tool allows you to create a shareable link for your files without uploading them. Here's how it works:</p>
+        <ol>
+            <li>Select your files by clicking or dragging them into the area below.</li>
+            <li>We'll generate a (very long) link that encodes the files into the link itself.</li>
+            <li>Share this link with others. They can use it to view and download the files.</li>
+        </ol>
+        <p>No data is uploaded anywhere. Everything happens in the browser.</p>
+    </div>
+    <div id="drop-area">
+        <p>Click here or drag and drop files to generate a sharing link</p>
+        <input type="file" id="fileElem" multiple style="display:none">
+    </div>
+    <div id="download-instructions"></div>
+    <div id="file-list"></div>
+    <button id="confirm-button">Generate Sharing Link</button>
+    <button id="download-all">Download All Files</button>
+    <div id="share-url"></div>
+    <div id="warning"></div>
+    <div id="upload-link">
+        <a href="#" id="upload-own-files">Upload your own files</a>
+    </div>
+
+    <script>
+        let dropArea = document.getElementById('drop-area');
+        let fileList = document.getElementById('file-list');
+        let confirmButton = document.getElementById('confirm-button');
+        let downloadAllButton = document.getElementById('download-all');
+        let shareUrlDiv = document.getElementById('share-url');
+        let warningDiv = document.getElementById('warning');
+        let fileElem = document.getElementById('fileElem');
+        let infoSection = document.getElementById('info-section');
+        let uploadLink = document.getElementById('upload-link');
+        let uploadOwnFilesLink = document.getElementById('upload-own-files');
+        let files = [];
+        let shareableUrl = '';
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropArea.classList.add('highlight');
+        }
+
+        function unhighlight(e) {
+            dropArea.classList.remove('highlight');
+        }
+
+        dropArea.addEventListener('drop', handleDrop, false);
+        dropArea.addEventListener('click', () => fileElem.click());
+
+        fileElem.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+
+        function handleDrop(e) {
+            let dt = e.dataTransfer;
+            handleFiles(dt.files);
+        }
+
+        function handleFiles(newFiles) {
+            files = [...files, ...Array.from(newFiles)];
+            updateFileList();
+            resetShareLink();
+            fileElem.value = ''; // Clear the file input
+        }
+
+        function updateFileList() {
+            fileList.innerHTML = '';
+            files.forEach((file, index) => {
+                let div = document.createElement('div');
+                div.className = 'file-item';
+                
+                if (file.type.startsWith('image/')) {
+                    let img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    div.appendChild(img);
+                } else {
+                    let fileIcon = document.createElement('div');
+                    fileIcon.className = 'file-icon';
+                    fileIcon.textContent = getFileIconText(file.name);
+                    div.appendChild(fileIcon);
+                }
+
+                let p = document.createElement('p');
+                p.textContent = file.name;
+                div.appendChild(p);
+
+                let removeButton = document.createElement('button');
+                removeButton.className = 'remove-file';
+                removeButton.textContent = '×';
+                removeButton.onclick = function() {
+                    files.splice(index, 1);
+                    updateFileList();
+                    resetShareLink();
+                };
+                div.appendChild(removeButton);
+
+                fileList.appendChild(div);
+            });
+            
+            confirmButton.style.display = files.length > 0 ? 'block' : 'none';
+        }
+
+        function resetShareLink() {
+            shareUrlDiv.style.display = 'none';
+            warningDiv.textContent = '';
+            shareableUrl = '';
+        }
+
+        function getFileIconText(filename) {
+            let extension = filename.split('.').pop().toUpperCase();
+            return extension.length > 4 ? extension.substr(0, 3) + '…' : extension;
+        }
+
+        confirmButton.addEventListener('click', async function() {
+            let fileData = await Promise.all(files.map(async file => ({
+                n: file.name,
+                t: file.type,
+                s: file.size,
+                c: await readFileAsDataURL(file)
+            })));
+            
+            let jsonData = JSON.stringify(fileData);
+            let compressedData = LZString.compressToEncodedURIComponent(jsonData);
+            shareableUrl = window.location.href.split('#')[0] + '#' + compressedData;
+            
+            if (shareableUrl.length > 10000) {
+                warningDiv.textContent = '(this link is pretty long, ymmv depending on browser)';
+            }
+            
+            shareUrlDiv.innerHTML = 'Here\'s your <a href="' + shareableUrl + '" target="_blank">link</a>';
+            shareUrlDiv.style.display = 'block';
+        });
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                let reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function loadFromHash() {
+            let hash = window.location.hash.substr(1);
+            if (hash) {
+                try {
+                    let jsonData = LZString.decompressFromEncodedURIComponent(hash);
+                    let fileData = JSON.parse(jsonData);
+                    fileData.forEach((file, index) => {
+                        let div = document.createElement('div');
+                        div.className = 'file-item';
+
+                        if (file.t.startsWith('image/')) {
+                            let img = document.createElement('img');
+                            img.src = file.c;
+                            div.appendChild(img);
+                        } else {
+                            let fileIcon = document.createElement('div');
+                            fileIcon.className = 'file-icon';
+                            fileIcon.textContent = getFileIconText(file.n);
+                            div.appendChild(fileIcon);
+                        }
+
+                        let p = document.createElement('p');
+                        p.textContent = file.n;
+                        div.appendChild(p);
+
+                        div.addEventListener('click', function() {
+                            downloadFile(file);
+                        });
+
+                        fileList.appendChild(div);
+                    });
+                    downloadAllButton.style.display = 'block';
+                    dropArea.style.display = 'none';
+                    infoSection.style.display = 'none';
+                    uploadLink.style.display = 'block';
+
+                    // Add download instructions
+                    let instructionsDiv = document.getElementById('download-instructions');
+                    instructionsDiv.textContent = 'Click on a file to download it';
+                    instructionsDiv.style.display = 'block';
+                } catch (e) {
+                    console.error('Error parsing URL data:', e);
+                    warningDiv.textContent = 'Error: Unable to load files from URL.';
+                }
+            }
+        }
+
+        function downloadFile(file) {
+            let link = document.createElement('a');
+            link.href = file.c;
+            link.download = file.n;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        uploadOwnFilesLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            const baseUrl = window.location.origin + window.location.pathname;
+            if (window.location.href !== baseUrl) {
+                window.history.pushState({}, '', baseUrl);
+                location.reload();
+            } else {
+                location.reload();
+            }
+        });
+
+        downloadAllButton.addEventListener('click', function() {
+            let hash = window.location.hash.substr(1);
+            let jsonData = LZString.decompressFromEncodedURIComponent(hash);
+            let fileData = JSON.parse(jsonData);
+            fileData.forEach(downloadFile);
+        });
+
+        window.onload = loadFromHash;
+
+        new Sortable(fileList, {
+            animation: 150,
+            ghostClass: 'blue-background-class'
+        });
+    </script>
+</body>
+</html>
